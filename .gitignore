@@ -1,0 +1,6 @@
+KD*/*
+DATA/*
+results.tsv
+results_plot.png
+.idea
+*.pyc
