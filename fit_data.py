@@ -15,3 +15,5 @@ def fit_emg(xdata, ydata, initial_guess=None):
 
 def get_mean_and_variance(h, mu, sigma, tau, c):
     return (mu + tau, sigma**2 + tau**2)
+
+
