@@ -6,6 +6,7 @@ import shutil
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+from tabulate import tabulate
 
 from read_data import read_data_set
 from fit_data import emg, fit_emg, get_mean_and_variance
@@ -23,13 +24,29 @@ for dir in [name for name in os.listdir(DIR_NAME) if os.path.isdir(os.path.join(
         shutil.rmtree(dir_path + "_fitpng", ignore_errors=True)
         os.mkdir(dir_path + "_fitpng")
         from_to, voltage, header, units, indices, data = read_data_set(dir_path)
-        means1 = []
-        variances1 = []
-        means2 = []
-        variances2 = []
-        means_diff = []
+        hs1 = []
+        hs2 = []
+        mus1 = []
+        mus2 = []
         sigmas1 = []
         sigmas2 = []
+        taus1 = []
+        taus2 = []
+        cs1 = []
+        cs2 = []
+        mus_diff = []
+        Delta_hs1 = []
+        Delta_hs2 = []
+        Delta_mus1 = []
+        Delta_mus2 = []
+        Delta_sigmas1 = []
+        Delta_sigmas2 = []
+        Delta_taus1 = []
+        Delta_taus2 = []
+        Delta_cs1 = []
+        Delta_cs2 = []
+        Delta_mus_diff = []
+
         if (units[1] == "V"):
             data[:, 1, :] *= 1000
         if (units[2] == "V"):
@@ -46,18 +63,38 @@ for dir in [name for name in os.listdir(DIR_NAME) if os.path.isdir(os.path.join(
             except:
                 print("could not fit 2!")
                 continue
-            mean1, var1 = get_mean_and_variance(*popt1)
-            means1.append(mean1)
-            variances1.append(var1)
-            mean2, var2 = get_mean_and_variance(*popt2)
-            means2.append(mean2)
-            variances2.append(var2)
+            hs1.append(popt1[0])
+            hs2.append(popt2[0])
+            mu1 = popt1[1]
+            mu2 = popt2[1]
+            mus1.append(popt1[1])
+            mus2.append(popt2[1])
             sigmas1.append(popt1[2])
             sigmas2.append(popt2[2])
-            if mean1 and mean2:
-                means_diff.append(np.abs(mean2-mean1))
+            Delta_hs1.append(np.sqrt(pcov1[0][0]))
+            Delta_hs2.append(np.sqrt(pcov2[0][0]))
+            Delta_mus1.append(np.sqrt(pcov1[1][1]))
+            Delta_mus2.append(np.sqrt(pcov2[1][1]))
+            Delta_sigmas1.append(np.sqrt(pcov1[2][2]))
+            Delta_sigmas2.append(np.sqrt(pcov2[2][2]))
+            tau1 = popt1[3]
+            Delta_mu1 = np.sqrt(pcov1[1][1])
+            Delta_mu2 = np.sqrt(pcov2[1][1])
+            tau2 = popt2[3]
+            taus1.append(tau1)
+            taus2.append(tau2)
+            Delta_taus1.append(np.sqrt(pcov1[3][3]))
+            Delta_taus2.append(np.sqrt(pcov1[3][3]))
+            cs1.append(popt1[4])
+            cs2.append(popt2[4])
+            Delta_cs1.append(np.sqrt(pcov1[4][4]))
+            Delta_cs2.append(np.sqrt(pcov2[4][4]))
+            if mu1 and mu2:
+                mus_diff.append(np.abs(mu2-mu1))
+                Delta_mus_diff.append(np.sqrt(Delta_mu1**2+Delta_mu2**2))
             else:
-                means_diff.append(0)
+                mus_diff.append(0)
+                Delta_mus_diff.append(0)
             # palette = plt.get_cmap('Blues')
             # palette1 = plt.get_cmap('Oranges')
             # plt.plot(dataset[0], emg(dataset[0], *popt1), color=palette(1000))
@@ -73,12 +110,17 @@ for dir in [name for name in os.listdir(DIR_NAME) if os.path.isdir(os.path.join(
             # plt.show()
             # plt.clf()
             print(units, from_to, voltage, index)
-        analyzed[from_to][str(voltage)] = np.array([means1, variances1, means2, variances2, sigmas1, sigmas2])
+        analyzed[from_to][str(voltage)] = np.array([hs1, Delta_hs1, mus1, Delta_mus1, sigmas1, Delta_sigmas1, taus1, Delta_taus1, cs1, Delta_cs1, hs2, Delta_hs2, mus2, Delta_mus2, sigmas2, Delta_sigmas2, taus2, Delta_taus2, cs2, Delta_cs2])
 
 data_dir = "DATA"
 shutil.rmtree(data_dir, ignore_errors=True)
 os.mkdir(data_dir)
 for from_to, byfreq in analyzed.items():
     for voltage, data in byfreq.items():
-        np.savetxt(os.path.join(data_dir, f"{from_to}_{voltage}.tsv"), data.T, delimiter="\t", header="meanChannel1\tvarianceChannel1\tmeanChannel2\tvarianceChannel2\tmean_diff\tsigmans1\tsigmas2")
+        np.savetxt(os.path.join(data_dir, f"{from_to}_{voltage}.tsv"), data.T, delimiter="\t", header="h1 [mV]\t Delta h1 [mV] \t mu1 [us] \t Delta_mu1 [us]\tsigma1 [us]\t Delta_sigma1 [us] \t tau1 [us]\t Delta_tau1 [us] \t c1 [mV] \t Delta_c1 [mV]\th2 [mV]\t Delta h2 [mV] \t mu2 [us] \t Delta_mu2 [us]\tsigma2 [us]\t Delta_sigma2 [us] \t tau2 [us]\t Delta_tau2 [us] \t c2 [mV] \t Delta_c2 [mV]")
+        f = open(os.path.join(data_dir, f"_tex_{from_to}_{voltage}.tex"), 'w+')
+        f.write(tabulate(data.T,
+                                         headers=["h1 [mV]", "Delta h1 [mV]", "mu1 [us]", "Delta_mu1 [us]", "sigma1 [us]", "Delta_sigma1 [us]", "tau1 [us]", "Delta_tau1 [us]", "c1 [mV]", "Delta_c1 [mV]", "h2 [mV]", "Delta h2 [mV]", "mu2 [us]", "Delta_mu2 [us]", "sigma2 [us]", "Delta_sigma2 [us]", "tau2 [us]", "Delta_tau2 [us]", "c2 [mV]", "Delta_c2 [mV]"],
+                                         tablefmt='latex'))
+        f.close()
 print("done", analyzed)
